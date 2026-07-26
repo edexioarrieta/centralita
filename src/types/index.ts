@@ -21,26 +21,7 @@ export type EventType =
   | 'reprogramacion'
   | 'inicio_llamada'
   | 'fin_llamada'
-  | 'observacion'
-  | 'notify_out_start'
-  | 'notify_answer'
-  | 'notify_out_end'
-  | 'notify_record';
-
-export type CallProvider = 'mock' | 'zadarma' | string;
-export type CallTechnicalStatus =
-  | 'created'
-  | 'initiated'
-  | 'dialing'
-  | 'ringing'
-  | 'answered'
-  | 'connected'
-  | 'completed'
-  | 'failed'
-  | 'no_answer'
-  | 'busy'
-  | 'cancelled'
-  | string;
+  | 'observacion';
 
 export interface UserProfile {
   id: string;
@@ -85,14 +66,6 @@ export interface Call {
   result: CallResult;
   notes: string;
   created_at: string;
-  provider: CallProvider;
-  provider_call_id: string | null;
-  status: CallTechnicalStatus;
-  destination: string | null;
-  extension: string | null;
-  answered_at: string | null;
-  recording_url: string | null;
-  provider_payload: Record<string, unknown> | null;
   operator?: Pick<UserProfile, 'id' | 'first_name' | 'last_name'> | null;
 }
 
@@ -106,7 +79,6 @@ export interface CallLog {
   operator_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
-  provider_event_id: string | null;
   operator?: Pick<UserProfile, 'id' | 'first_name' | 'last_name'> | null;
 }
 

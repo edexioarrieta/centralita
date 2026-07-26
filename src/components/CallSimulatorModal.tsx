@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Phone,
   PhoneOff,
@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/Button';
 import { Textarea, Input } from '@/components/ui/Field';
 import { formatDurationClock } from '@/lib/format';
 import type { VoiceProvider } from '@/providers/VoiceProvider';
-import type { ActiveCall, CallState } from '@/providers/VoiceProvider';
 import { Modal } from '@/components/ui/Modal';
 
 interface CallSimulatorModalProps {
@@ -28,7 +27,6 @@ interface CallSimulatorModalProps {
   title: string;
   realCall?: boolean;
   onSaved: (result: {
-    callId: string;
     result: CallResult;
     durationSeconds: number;
     notes: string;
@@ -36,7 +34,7 @@ interface CallSimulatorModalProps {
   }) => Promise<void>;
 }
 
-type Phase = 'calling' | 'in-call' | 'result';
+type Phase = 'calling' | 'sent' | 'in-call' | 'result';
 
 export function CallSimulatorModal({
   open,
@@ -57,44 +55,25 @@ export function CallSimulatorModal({
   const [rescheduleAt, setRescheduleAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [callId, setCallId] = useState('');
-  const [callState, setCallState] = useState<CallState>('idle');
-  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    return provider.onStateChange((state, call) => {
-      setCallState(state);
-      setActiveCall(call);
-      if (call) {
-        setCallId(call.callId);
-        setDuration(call.durationSeconds);
-      }
-      if (state === 'ended') setPhase('result');
-    });
-  }, [open, provider]);
-
-  useEffect(() => {
-    if (!open || callState !== 'connected' || !activeCall?.answeredAt) return;
-    const updateDuration = () => {
-      const elapsed = Math.max(
-        0,
-        Math.floor((Date.now() - activeCall.answeredAt!.getTime()) / 1000),
-      );
-      setDuration(Math.max(activeCall.durationSeconds, elapsed));
-    };
-    updateDuration();
-    const timer = setInterval(updateDuration, 1000);
-    return () => clearInterval(timer);
-  }, [activeCall, callState, open]);
 
   const startCall = async () => {
     setError('');
     try {
-      const started = await provider.makeCall(loanId, phoneNumber);
-      setCallId(started.callId);
-      setCallState(started.state);
-      setPhase('in-call');
+      await provider.makeCall(loanId, phoneNumber);
+      if (realCall) {
+        setPhase('sent');
+      } else {
+        setPhase('in-call');
+        // Actualizar duracion cada segundo
+        const interval = setInterval(() => {
+          const call = provider.getCallStatus();
+          if (call?.state === 'connected') {
+            setDuration(call.durationSeconds);
+          } else if (call?.state === 'ended') {
+            clearInterval(interval);
+          }
+        }, 1000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar la llamada');
     }
@@ -118,7 +97,6 @@ export function CallSimulatorModal({
     setError('');
     try {
       await onSaved({
-        callId,
         result,
         durationSeconds: duration,
         notes: notes.trim(),
@@ -139,15 +117,11 @@ export function CallSimulatorModal({
     setNotes('');
     setRescheduleAt('');
     setError('');
-    setCallId('');
-    setCallState('idle');
-    setActiveCall(null);
-    provider.clearActiveCall();
     onClose();
   };
 
   const handleClose = () => {
-    if (phase === 'in-call') return; // No cerrar mientras hay llamada activa
+    if (phase === 'in-call' || phase === 'sent') return; // No cerrar mientras hay llamada activa
     resetAndClose();
   };
 
@@ -167,13 +141,15 @@ export function CallSimulatorModal({
               Guardar llamada
             </Button>
           </>
+        ) : phase === 'sent' ? (
+          <Button onClick={() => setPhase('result')}>
+            Continuar
+          </Button>
         ) : phase === 'in-call' ? (
-          realCall ? null : (
-            <Button variant="danger" onClick={endCall}>
-              <PhoneOff className="h-4 w-4" />
-              Colgar
-            </Button>
-          )
+          <Button variant="danger" onClick={endCall}>
+            <PhoneOff className="h-4 w-4" />
+            Colgar
+          </Button>
         ) : (
           <Button onClick={startCall} loading={false}>
             <PhoneCall className="h-4 w-4" />
@@ -209,6 +185,22 @@ export function CallSimulatorModal({
         </div>
       )}
 
+      {/* Fase: solicitud enviada (llamada real) */}
+      {phase === 'sent' && (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="relative mb-4">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
+              <PhoneCall className="h-10 w-10 text-emerald-600" />
+            </div>
+            <span className="absolute inset-0 rounded-full" style={{ animation: 'pulseRing 1.5s infinite' }} />
+          </div>
+          <p className="font-medium text-slate-900">Solicitud enviada</p>
+          <p className="mt-1 text-sm text-slate-500">
+            La llamada fue solicitada a Zadarma. Tu extension sonara en breve.
+          </p>
+        </div>
+      )}
+
       {/* Fase: en llamada */}
       {phase === 'in-call' && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -218,20 +210,12 @@ export function CallSimulatorModal({
             </div>
             <span className="absolute inset-0 rounded-full" style={{ animation: 'pulseRing 1.5s infinite' }} />
           </div>
-          <p className="font-medium text-slate-900">
-            {realCall ? realCallStatusLabel(callState, activeCall?.providerStatus) : 'Llamada en curso'}
-          </p>
+          <p className="font-medium text-slate-900">Llamada en curso</p>
           <div className="mt-2 flex items-center gap-2 text-2xl font-mono font-bold text-slate-900">
             <Clock className="h-5 w-5 text-slate-400" />
             {formatDurationClock(duration)}
           </div>
-          <p className="mt-2 text-sm text-slate-500">
-            {realCall
-              ? activeCall?.extension
-                ? `Extension ${activeCall.extension}`
-                : 'Esperando novedades de Zadarma'
-              : 'Presiona "Colgar" para finalizar'}
-          </p>
+          <p className="mt-2 text-sm text-slate-500">Presiona "Colgar" para finalizar</p>
         </div>
       )}
 
@@ -245,11 +229,6 @@ export function CallSimulatorModal({
                 {formatDurationClock(duration)}
               </span>
             </div>
-            {realCall && activeCall?.providerStatus && (
-              <p className="mt-1 text-xs text-slate-500">
-                {terminalStatusLabel(activeCall.providerStatus)}
-              </p>
-            )}
           </div>
 
           <div>
@@ -315,18 +294,4 @@ export function CallSimulatorModal({
   );
 }
 
-function realCallStatusLabel(state: CallState, providerStatus?: string): string {
-  if (state === 'connected') return 'Cliente conectado';
-  if (state === 'ringing') return 'Llamando al cliente';
-  if (providerStatus === 'initiated') return 'Llamando al operador';
-  return 'Solicitud enviada';
-}
-
-function terminalStatusLabel(status: string): string {
-  if (status === 'no_answer') return 'No contestó';
-  if (status === 'busy') return 'Destino ocupado';
-  if (status === 'failed') return 'La llamada falló';
-  if (status === 'cancelled' || status === 'canceled') return 'Llamada cancelada';
-  return 'Llamada finalizada';
-}
 

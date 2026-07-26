@@ -29,7 +29,6 @@ import {
   fetchCallLogsByLoan,
   updateLoan,
   createCall,
-  updateCallOutcome,
   addObservationLog,
 } from '@/lib/api';
 import { queryKeys, invalidateLoanQueries, invalidateLoanDetail } from '@/lib/query';
@@ -47,14 +46,7 @@ import {
   formatDuration,
   countdown,
 } from '@/lib/format';
-import type { Call, CallLog, CallResult, EventType, LoanStatus } from '@/types';
-
-const TECHNICAL_EVENT_TYPES = new Set([
-  'notify_out_start',
-  'notify_answer',
-  'notify_out_end',
-  'notify_record',
-]);
+import type { CallResult, EventType, LoanStatus } from '@/types';
 
 export function LoanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -83,7 +75,6 @@ export function LoanDetailPage() {
     queryFn: () => fetchCallLogsByLoan(id!),
     enabled: !!id,
   });
-  const visibleLogs = logs.filter((log) => !TECHNICAL_EVENT_TYPES.has(log.event_type));
 
   if (isLoading) {
     return (
@@ -110,33 +101,28 @@ export function LoanDetailPage() {
   const showCountdown = status === 'nuevo' || status === 'programado';
 
   const handleSaveCall = async ({
-    callId,
     result,
     durationSeconds,
     notes,
     rescheduleAt,
   }: {
-    callId: string;
     result: CallResult;
     durationSeconds: number;
     notes: string;
     rescheduleAt?: string;
-  }, realCall: boolean) => {
-    if (realCall) {
-      await updateCallOutcome(callId, { result, notes });
-    } else {
-      const startedAt = new Date(Date.now() - durationSeconds * 1000).toISOString();
-      const endedAt = new Date().toISOString();
-      await createCall({
-        loan_id: loan.id,
-        operator_id: profile?.id ?? null,
-        started_at: startedAt,
-        ended_at: endedAt,
-        duration: durationSeconds,
-        result,
-        notes,
-      });
-    }
+  }) => {
+    const startedAt = new Date(Date.now() - durationSeconds * 1000).toISOString();
+    const endedAt = new Date().toISOString();
+
+    await createCall({
+      loan_id: loan.id,
+      operator_id: profile?.id ?? null,
+      started_at: startedAt,
+      ended_at: endedAt,
+      duration: durationSeconds,
+      result,
+      notes,
+    });
 
     const nextStatus = CALL_RESULTS[result].nextStatus as LoanStatus;
     const patch: Parameters<typeof updateLoan>[1] = { status: nextStatus };
@@ -278,37 +264,16 @@ export function LoanDetailPage() {
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <ResultIcon
-                          result={call.result as CallResult}
-                          active={!isTerminalCall(call)}
-                        />
+                        <ResultIcon result={call.result as CallResult} />
                         <span className="text-sm font-medium text-slate-900">
-                          {isTerminalCall(call)
-                            ? CALL_RESULTS[call.result as CallResult]?.label ?? call.result
-                            : callStatusLabel(call.status)}
+                          {CALL_RESULTS[call.result as CallResult]?.label ?? call.result}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500">
                         {formatDateTime(call.started_at)} · {formatDuration(call.duration)}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        Operador: {operatorName(call)} · Extensión: {call.extension ?? '—'}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Proveedor: {call.provider === 'zadarma' ? 'Zadarma' : 'Simulador'}
-                      </p>
                       {call.notes && (
                         <p className="text-sm text-slate-600">{call.notes}</p>
-                      )}
-                      {call.recording_url && (
-                        <a
-                          href={call.recording_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                        >
-                          Escuchar grabación
-                        </a>
                       )}
                     </div>
                   </div>
@@ -321,20 +286,18 @@ export function LoanDetailPage() {
         {/* Columna derecha: cronologia */}
         <div className="space-y-6">
           <Section title="Cronologia" icon={History}>
-            {visibleLogs.length === 0 ? (
+            {logs.length === 0 ? (
               <EmptyState icon={Info} text="Sin eventos registrados" />
             ) : (
               <div className="relative space-y-4">
                 <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-200" />
-                {visibleLogs.map((log) => (
+                {logs.map((log) => (
                   <div key={log.id} className="relative flex gap-3">
                     <div className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-slate-200">
                       <EventIcon type={log.event_type as EventType} />
                     </div>
                     <div className="min-w-0 flex-1 pb-1">
-                      <p className="text-sm font-medium text-slate-900">
-                        {timelineDescription(log, calls)}
-                      </p>
+                      <p className="text-sm font-medium text-slate-900">{log.description}</p>
                       <p className="text-xs text-slate-400">
                         {formatDateTime(log.created_at)}
                       </p>
@@ -357,7 +320,7 @@ export function LoanDetailPage() {
         provider={getVoiceProvider()}
         title="Llamar"
         realCall
-        onSaved={(data) => handleSaveCall(data, true)}
+        onSaved={handleSaveCall}
       />
 
       <CallSimulatorModal
@@ -368,7 +331,7 @@ export function LoanDetailPage() {
         operatorId={profile?.id ?? null}
         provider={getMockVoiceProvider()}
         title="Simular llamada"
-        onSaved={(data) => handleSaveCall(data, false)}
+        onSaved={handleSaveCall}
       />
     </div>
   );
@@ -442,61 +405,11 @@ function EmptyState({ icon: Icon, text }: { icon: typeof User; text: string }) {
   );
 }
 
-function ResultIcon({ result, active = false }: { result: CallResult; active?: boolean }) {
-  if (active) return <PhoneCall className="h-4 w-4 text-indigo-600" />;
+function ResultIcon({ result }: { result: CallResult }) {
   if (result === 'atendido') return <Phone className="h-4 w-4 text-emerald-600" />;
   if (result === 'no_contesto') return <PhoneOff className="h-4 w-4 text-orange-500" />;
   if (result === 'rechazado') return <X className="h-4 w-4 text-rose-600" />;
   return <CalendarClock className="h-4 w-4 text-amber-600" />;
-}
-
-function isTerminalCall(call: Call): boolean {
-  return ['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled'].includes(
-    call.status,
-  );
-}
-
-function callStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    created: 'Creada',
-    initiated: 'Iniciando',
-    dialing: 'Marcando',
-    ringing: 'Sonando',
-    answered: 'Atendida',
-    connected: 'Conectada',
-    completed: 'Finalizada',
-    failed: 'Fallida',
-    no_answer: 'No contestó',
-    busy: 'Ocupado',
-    cancelled: 'Cancelada',
-    canceled: 'Cancelada',
-  };
-  return labels[status] ?? status;
-}
-
-function operatorName(call: Call): string {
-  if (!call.operator) return '—';
-  return `${call.operator.first_name} ${call.operator.last_name}`.trim() || '—';
-}
-
-function timelineDescription(log: CallLog, calls: Call[]): string {
-  if (log.event_type === 'inicio_llamada') {
-    const name = log.operator
-      ? `${log.operator.first_name} ${log.operator.last_name}`.trim()
-      : '';
-    return name ? `Llamada iniciada por ${name}` : 'Llamada iniciada';
-  }
-
-  if (log.event_type === 'fin_llamada') {
-    const callId = typeof log.metadata?.call_id === 'string' ? log.metadata.call_id : null;
-    const call = callId ? calls.find((item) => item.id === callId) : undefined;
-    if (call && isTerminalCall(call)) {
-      const result = CALL_RESULTS[call.result]?.label ?? call.result;
-      return `Llamada finalizada · ${formatDuration(call.duration)} · ${result}`;
-    }
-  }
-
-  return log.description;
 }
 
 function EventIcon({ type }: { type: EventType }) {

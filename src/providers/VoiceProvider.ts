@@ -26,10 +26,7 @@ export interface ActiveCall {
   loanId: string;
   phoneNumber: string;
   state: CallState;
-  providerStatus?: string;
-  extension?: string | null;
   startedAt: Date;
-  answeredAt?: Date | null;
   durationSeconds: number;
 }
 
@@ -80,7 +77,4 @@ export interface VoiceProvider {
 
   /** Suscripcion a cambios de estado de la llamada. */
   onStateChange(listener: (state: CallState, call: ActiveCall | null) => void): () => void;
-
-  /** Libera recursos y olvida la llamada activa al cerrar el flujo. */
-  clearActiveCall(): void;
 }
