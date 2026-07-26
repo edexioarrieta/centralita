@@ -36,6 +36,8 @@ export class ZadarmaProvider implements VoiceProvider {
   private readonly baseUrl: string;
   private active: ActiveCall | null = null;
   private channel: RealtimeChannel | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshInFlight = false;
   private stateListeners = new Set<(state: CallState, call: ActiveCall | null) => void>();
 
   constructor() {
@@ -142,27 +144,41 @@ export class ZadarmaProvider implements VoiceProvider {
       );
     this.channel = channel;
 
-    await new Promise<void>((resolve, reject) => {
-      channel.subscribe((status, error) => {
-        if (status === 'SUBSCRIBED') resolve();
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          reject(error ?? new Error('No se pudo conectar a Supabase Realtime'));
-        }
-      });
+    channel.subscribe((status) => {
+      // Si el websocket se degrada, el polling mantiene la fila sincronizada.
+      // Supabase Realtime intentara reconectar el canal por su cuenta.
+      if (status === 'SUBSCRIBED') {
+        void this.refreshCall(callId);
+      }
     });
 
     // La consulta posterior a la suscripcion recupera cualquier evento rapido
     // ocurrido mientras se establecia el canal.
-    const { data, error } = await supabase
-      .from('calls')
-      .select('*')
-      .eq('id', callId)
-      .single();
-    if (error) {
-      this.stopWatching();
-      throw new Error(`No se pudo seguir el estado de la llamada: ${error.message}`);
+    await this.refreshCall(callId, true);
+    if (this.active?.callId === callId && this.active.state !== 'ended') {
+      this.pollTimer = setInterval(() => void this.refreshCall(callId), 1500);
     }
-    this.applyCallRow(data as Call);
+  }
+
+  private async refreshCall(callId: string, throwOnError = false): Promise<void> {
+    if (this.refreshInFlight || this.active?.callId !== callId) return;
+    this.refreshInFlight = true;
+    try {
+      const { data, error } = await supabase
+        .from('calls')
+        .select('*')
+        .eq('id', callId)
+        .single();
+      if (error) {
+        if (throwOnError) {
+          throw new Error(`No se pudo seguir el estado de la llamada: ${error.message}`);
+        }
+        return;
+      }
+      this.applyCallRow(data as Call);
+    } finally {
+      this.refreshInFlight = false;
+    }
   }
 
   private applyCallRow(row: Call): void {
@@ -186,9 +202,14 @@ export class ZadarmaProvider implements VoiceProvider {
   }
 
   private stopWatching(): void {
-    if (!this.channel) return;
-    void supabase.removeChannel(this.channel);
-    this.channel = null;
+    if (this.channel) {
+      void supabase.removeChannel(this.channel);
+      this.channel = null;
+    }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   private notify(): void {

@@ -317,7 +317,7 @@ export function CallSimulatorModal({
 
 function realCallStatusLabel(state: CallState, providerStatus?: string): string {
   if (state === 'connected') return 'Cliente conectado';
-  if (state === 'ringing') return 'Llamando al cliente';
+  if (state === 'ringing') return 'Operador atendió · llamando al cliente';
   if (providerStatus === 'initiated') return 'Llamando al operador';
   return 'Solicitud enviada';
 }
@@ -329,4 +329,3 @@ function terminalStatusLabel(status: string): string {
   if (status === 'cancelled' || status === 'canceled') return 'Llamada cancelada';
   return 'Llamada finalizada';
 }
-
