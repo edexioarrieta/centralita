@@ -116,6 +116,23 @@ export async function createCall(input: CallInput): Promise<Call> {
   return data as Call;
 }
 
+export async function updateCallOutcome(
+  callId: string,
+  outcome: Pick<Call, 'result' | 'notes'>,
+): Promise<Call> {
+  const { data, error } = await supabase
+    .from('calls')
+    .update({
+      result: outcome.result,
+      notes: outcome.notes,
+    })
+    .eq('id', callId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Call;
+}
+
 // ============================================================
 // Cronologia (call_logs)
 // ============================================================

@@ -78,6 +78,12 @@ export class MockVoiceProvider implements VoiceProvider {
     return () => this.stateListeners.delete(listener);
   }
 
+  clearActiveCall(): void {
+    this.stopTick();
+    this.active = null;
+    this.notify();
+  }
+
   private transitionTo(state: CallState): void {
     if (!this.active) return;
     this.active = { ...this.active, state };

@@ -72,6 +72,14 @@ export interface Database {
           result: string;
           notes: string;
           created_at: string;
+          provider: string;
+          provider_call_id: string | null;
+          status: string;
+          destination: string | null;
+          extension: string | null;
+          answered_at: string | null;
+          recording_url: string | null;
+          provider_payload: Record<string, unknown> | null;
         };
         Insert: {
           id?: string;
@@ -83,6 +91,14 @@ export interface Database {
           result?: string;
           notes?: string;
           created_at?: string;
+          provider?: string;
+          provider_call_id?: string | null;
+          status?: string;
+          destination?: string | null;
+          extension?: string | null;
+          answered_at?: string | null;
+          recording_url?: string | null;
+          provider_payload?: Record<string, unknown> | null;
         };
         Update: Partial<Database['public']['Tables']['calls']['Insert']>;
       };
@@ -97,6 +113,7 @@ export interface Database {
           operator_id: string | null;
           metadata: Record<string, unknown> | null;
           created_at: string;
+          provider_event_id: string | null;
         };
         Insert: {
           id?: string;
@@ -108,6 +125,7 @@ export interface Database {
           operator_id?: string | null;
           metadata?: Record<string, unknown> | null;
           created_at?: string;
+          provider_event_id?: string | null;
         };
         Update: Partial<Database['public']['Tables']['call_logs']['Insert']>;
       };

@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { Call } from '@/types';
 import type {
   ActiveCall,
   CallRecord,
@@ -33,6 +35,7 @@ export class ZadarmaProvider implements VoiceProvider {
 
   private readonly baseUrl: string;
   private active: ActiveCall | null = null;
+  private channel: RealtimeChannel | null = null;
   private stateListeners = new Set<(state: CallState, call: ActiveCall | null) => void>();
 
   constructor() {
@@ -65,10 +68,13 @@ export class ZadarmaProvider implements VoiceProvider {
       loanId,
       phoneNumber,
       state: data.state ?? 'dialing',
+      providerStatus: 'initiated',
+      extension,
       startedAt: new Date(),
       durationSeconds: 0,
     };
     this.notify();
+    await this.watchCall(data.callId);
 
     return data;
   }
@@ -113,6 +119,78 @@ export class ZadarmaProvider implements VoiceProvider {
     return () => this.stateListeners.delete(listener);
   }
 
+  clearActiveCall(): void {
+    this.stopWatching();
+    this.active = null;
+    this.notify();
+  }
+
+  private async watchCall(callId: string): Promise<void> {
+    this.stopWatching();
+
+    const channel = supabase
+      .channel(`call-${callId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'calls',
+          filter: `id=eq.${callId}`,
+        },
+        (payload) => this.applyCallRow(payload.new as Call),
+      );
+    this.channel = channel;
+
+    await new Promise<void>((resolve, reject) => {
+      channel.subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') resolve();
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          reject(error ?? new Error('No se pudo conectar a Supabase Realtime'));
+        }
+      });
+    });
+
+    // La consulta posterior a la suscripcion recupera cualquier evento rapido
+    // ocurrido mientras se establecia el canal.
+    const { data, error } = await supabase
+      .from('calls')
+      .select('*')
+      .eq('id', callId)
+      .single();
+    if (error) {
+      this.stopWatching();
+      throw new Error(`No se pudo seguir el estado de la llamada: ${error.message}`);
+    }
+    this.applyCallRow(data as Call);
+  }
+
+  private applyCallRow(row: Call): void {
+    if (!this.active || row.id !== this.active.callId) return;
+
+    this.active = {
+      ...this.active,
+      phoneNumber: row.destination ?? this.active.phoneNumber,
+      state: mapProviderStatus(row.status),
+      providerStatus: row.status,
+      extension: row.extension,
+      startedAt: new Date(row.started_at),
+      answeredAt: row.answered_at ? new Date(row.answered_at) : null,
+      durationSeconds: row.duration ?? 0,
+    };
+    this.notify();
+
+    if (this.active.state === 'ended') {
+      this.stopWatching();
+    }
+  }
+
+  private stopWatching(): void {
+    if (!this.channel) return;
+    void supabase.removeChannel(this.channel);
+    this.channel = null;
+  }
+
   private notify(): void {
     const state = this.active?.state ?? 'idle';
     this.stateListeners.forEach((l) => l(state, this.getCallStatus()));
@@ -126,4 +204,16 @@ export class ZadarmaProvider implements VoiceProvider {
       return `Error ${res.status} en el servidor de voz`;
     }
   }
+}
+
+function mapProviderStatus(status: string): CallState {
+  const normalized = status.toLowerCase();
+  if (['answered', 'connected'].includes(normalized)) return 'connected';
+  if (normalized === 'ringing') return 'ringing';
+  if (
+    ['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled'].includes(normalized)
+  ) {
+    return 'ended';
+  }
+  return 'dialing';
 }
