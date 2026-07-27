@@ -50,6 +50,7 @@ import {
 import type { Call, CallLog, CallResult, EventType, LoanStatus } from '@/types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
+  'cambio_estado',
   'notify_out_start',
   'notify_answer',
   'notify_out_end',
@@ -336,7 +337,7 @@ export function LoanDetailPage() {
                         {timelineDescription(log, calls)}
                       </p>
                       <p className="text-xs text-slate-400">
-                        {formatDateTime(log.created_at)}
+                        {formatDateTime(timelineDate(log, calls))}
                       </p>
                     </div>
                   </div>
@@ -488,15 +489,31 @@ function timelineDescription(log: CallLog, calls: Call[]): string {
   }
 
   if (log.event_type === 'fin_llamada') {
-    const callId = typeof log.metadata?.call_id === 'string' ? log.metadata.call_id : null;
-    const call = callId ? calls.find((item) => item.id === callId) : undefined;
-    if (call && isTerminalCall(call)) {
-      const result = CALL_RESULTS[call.result]?.label ?? call.result;
-      return `Llamada finalizada · ${formatDuration(call.duration)} · ${result}`;
+    const call = callForLog(log, calls);
+    if (call) {
+      const operator = operatorName(call);
+      const extension = call.extension ? ` · Ext. ${call.extension}` : '';
+      if (isTerminalCall(call)) {
+        const result = CALL_RESULTS[call.result]?.label ?? call.result;
+        const connected = call.answered_at ? 'Cliente conectado · ' : '';
+        return `${connected}Llamada finalizada · ${formatDuration(call.duration)} · ${result} · ${operator}${extension}`;
+      }
+      return `Llamada iniciada por ${operator}${extension}`;
     }
   }
 
   return log.description;
+}
+
+function timelineDate(log: CallLog, calls: Call[]): string {
+  if (log.event_type !== 'fin_llamada') return log.created_at;
+  const call = callForLog(log, calls);
+  return call?.ended_at ?? call?.started_at ?? log.created_at;
+}
+
+function callForLog(log: CallLog, calls: Call[]): Call | undefined {
+  const callId = typeof log.metadata?.call_id === 'string' ? log.metadata.call_id : null;
+  return callId ? calls.find((call) => call.id === callId) : undefined;
 }
 
 function EventIcon({ type }: { type: EventType }) {
