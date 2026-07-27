@@ -139,6 +139,7 @@ export function LoanDetailPage() {
         duration: durationSeconds,
         result,
         notes,
+        outcome_confirmed_at: endedAt,
       });
     }
 
@@ -284,10 +285,12 @@ export function LoanDetailPage() {
                       <div className="flex items-center gap-2">
                         <ResultIcon
                           result={call.result as CallResult}
-                          active={!isTerminalCall(call)}
+                          active={!isTerminalCall(call) || !call.outcome_confirmed_at}
                         />
                         <span className="text-sm font-medium text-slate-900">
-                          {isTerminalCall(call)
+                          {isTerminalCall(call) && !call.outcome_confirmed_at
+                            ? 'Pendiente de clasificación'
+                            : isTerminalCall(call)
                             ? CALL_RESULTS[call.result as CallResult]?.label ?? call.result
                             : callStatusLabel(call.status)}
                         </span>
@@ -530,7 +533,9 @@ function timelineDescription(log: CallLog, calls: Call[]): string {
       const operator = operatorName(call);
       const extension = call.extension ? ` · Ext. ${call.extension}` : '';
       if (isTerminalCall(call)) {
-        const result = CALL_RESULTS[call.result]?.label ?? call.result;
+        const result = call.outcome_confirmed_at
+          ? CALL_RESULTS[call.result]?.label ?? call.result
+          : 'Pendiente de clasificación';
         const connected = call.answered_at ? 'Cliente conectado · ' : '';
         return `${connected}Llamada finalizada · ${formatDuration(call.duration)} · ${result} · ${operator}${extension}`;
       }

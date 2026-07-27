@@ -109,6 +109,7 @@ export async function createCall(input: CallInput): Promise<Call> {
       duration: input.duration,
       result: input.result,
       notes: input.notes,
+      outcome_confirmed_at: input.outcome_confirmed_at ?? null,
     })
     .select()
     .single();
@@ -125,6 +126,7 @@ export async function updateCallOutcome(
     .update({
       result: outcome.result,
       notes: outcome.notes,
+      outcome_confirmed_at: new Date().toISOString(),
     })
     .eq('id', callId)
     .select()

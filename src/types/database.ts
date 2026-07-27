@@ -79,6 +79,7 @@ export interface Database {
           extension: string | null;
           answered_at: string | null;
           recording_url: string | null;
+          outcome_confirmed_at: string | null;
           provider_payload: Record<string, unknown> | null;
         };
         Insert: {
@@ -98,6 +99,7 @@ export interface Database {
           extension?: string | null;
           answered_at?: string | null;
           recording_url?: string | null;
+          outcome_confirmed_at?: string | null;
           provider_payload?: Record<string, unknown> | null;
         };
         Update: Partial<Database['public']['Tables']['calls']['Insert']>;

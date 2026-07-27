@@ -97,6 +97,7 @@ export interface Call {
   extension: string | null;
   answered_at: string | null;
   recording_url: string | null;
+  outcome_confirmed_at: string | null;
   provider_payload: Record<string, unknown> | null;
   operator?: Pick<UserProfile, 'id' | 'first_name' | 'last_name'> | null;
 }
@@ -134,6 +135,7 @@ export interface CallInput {
   duration: number;
   result: CallResult;
   notes: string;
+  outcome_confirmed_at?: string | null;
 }
 
 export type DB = Database;

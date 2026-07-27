@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Mic,
   Voicemail,
+  CheckCircle2,
 } from 'lucide-react';
 import type { CallResult } from '@/types';
 import { CALL_RESULTS } from '@/lib/constants';
@@ -158,16 +159,12 @@ export function CallSimulatorModal({
       onClose={handleClose}
       title={title}
       size="md"
+      canDismiss={phase === 'calling'}
       footer={
         phase === 'result' ? (
-          <>
-            <Button variant="secondary" onClick={resetAndClose} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} loading={saving}>
-              Guardar llamada
-            </Button>
-          </>
+          <Button onClick={handleSave} loading={saving}>
+            Guardar resultado
+          </Button>
         ) : phase === 'in-call' ? (
           realCall ? null : (
             <Button variant="danger" onClick={endCall}>
@@ -248,6 +245,16 @@ export function CallSimulatorModal({
       {/* Fase: resultado */}
       {phase === 'result' && (
         <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">La llamada ya quedó registrada automáticamente</p>
+              <p className="mt-0.5 text-emerald-700">
+                Completa el resultado para cerrar la gestión. Esta pantalla no se puede
+                descartar.
+              </p>
+            </div>
+          </div>
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500">Duracion</span>

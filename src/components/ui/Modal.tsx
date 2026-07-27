@@ -9,6 +9,7 @@ interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   footer?: ReactNode;
+  canDismiss?: boolean;
 }
 
 const sizeClasses = {
@@ -18,11 +19,19 @@ const sizeClasses = {
   xl: 'max-w-4xl',
 };
 
-export function Modal({ open, onClose, title, children, size = 'md', footer }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  footer,
+  canDismiss = true,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && canDismiss) onClose();
     };
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
@@ -30,7 +39,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
       document.removeEventListener('keydown', handler);
       document.body.style.overflow = '';
     };
-  }, [open, onClose]);
+  }, [canDismiss, open, onClose]);
 
   if (!open) return null;
 
@@ -38,7 +47,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-[fadeIn_0.15s_ease]"
-        onClick={onClose}
+        onClick={() => canDismiss && onClose()}
       />
       <div
         className={`relative w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl animate-[scaleIn_0.15s_ease]`}
@@ -46,12 +55,14 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         {title && (
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            {canDismiss && (
+              <button
+                onClick={onClose}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
         )}
         <div className="px-6 py-5">{children}</div>
