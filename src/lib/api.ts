@@ -133,6 +133,14 @@ export async function updateCallOutcome(
   return data as Call;
 }
 
+export async function createCallRecordingUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from('call-recordings')
+    .createSignedUrl(path, 5 * 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 // ============================================================
 // Cronologia (call_logs)
 // ============================================================

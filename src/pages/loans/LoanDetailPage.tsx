@@ -31,6 +31,7 @@ import {
   updateLoan,
   createCall,
   updateCallOutcome,
+  createCallRecordingUrl,
   addObservationLog,
 } from '@/lib/api';
 import { queryKeys, invalidateLoanQueries, invalidateLoanDetail } from '@/lib/query';
@@ -78,6 +79,7 @@ export function LoanDetailPage() {
     queryKey: queryKeys.calls(id!),
     queryFn: () => fetchCallsByLoan(id!),
     enabled: !!id,
+    refetchInterval: 10_000,
   });
 
   const { data: logs = [] } = useQuery({
@@ -303,14 +305,7 @@ export function LoanDetailPage() {
                         <p className="text-sm text-slate-600">{call.notes}</p>
                       )}
                       {call.recording_url && (
-                        <a
-                          href={call.recording_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                        >
-                          Escuchar grabación
-                        </a>
+                        <RecordingButton path={call.recording_url} />
                       )}
                     </div>
                   </div>
@@ -451,6 +446,45 @@ function ResultIcon({ result, active = false }: { result: CallResult; active?: b
   if (result === 'buzon_voz') return <Voicemail className="h-4 w-4 text-violet-600" />;
   if (result === 'rechazado') return <X className="h-4 w-4 text-rose-600" />;
   return <CalendarClock className="h-4 w-4 text-amber-600" />;
+}
+
+function RecordingButton({ path }: { path: string }) {
+  const [opening, setOpening] = useState(false);
+  const [error, setError] = useState('');
+
+  const openRecording = async () => {
+    const popup = window.open('', '_blank');
+    setOpening(true);
+    setError('');
+    try {
+      const signedUrl = await createCallRecordingUrl(path);
+      if (popup) {
+        popup.opener = null;
+        popup.location.href = signedUrl;
+      } else {
+        window.location.assign(signedUrl);
+      }
+    } catch {
+      popup?.close();
+      setError('No se pudo abrir la grabación');
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={openRecording}
+        disabled={opening}
+        className="inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-60"
+      >
+        {opening ? 'Preparando grabación…' : 'Escuchar grabación'}
+      </button>
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
+    </div>
+  );
 }
 
 function isTerminalCall(call: Call): boolean {
