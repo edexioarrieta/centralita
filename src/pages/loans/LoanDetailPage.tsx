@@ -22,6 +22,7 @@ import {
   PhoneIncoming,
   Info,
   AlertCircle,
+  Voicemail,
 } from 'lucide-react';
 import {
   fetchLoanById,
@@ -447,6 +448,7 @@ function ResultIcon({ result, active = false }: { result: CallResult; active?: b
   if (active) return <PhoneCall className="h-4 w-4 text-indigo-600" />;
   if (result === 'atendido') return <Phone className="h-4 w-4 text-emerald-600" />;
   if (result === 'no_contesto') return <PhoneOff className="h-4 w-4 text-orange-500" />;
+  if (result === 'buzon_voz') return <Voicemail className="h-4 w-4 text-violet-600" />;
   if (result === 'rechazado') return <X className="h-4 w-4 text-rose-600" />;
   return <CalendarClock className="h-4 w-4 text-amber-600" />;
 }

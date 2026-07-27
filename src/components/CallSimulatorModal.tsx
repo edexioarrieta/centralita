@@ -8,6 +8,7 @@ import {
   Clock,
   CalendarClock,
   Mic,
+  Voicemail,
 } from 'lucide-react';
 import type { CallResult } from '@/types';
 import { CALL_RESULTS } from '@/lib/constants';
@@ -232,6 +233,15 @@ export function CallSimulatorModal({
                 : 'Esperando novedades de Zadarma'
               : 'Presiona "Colgar" para finalizar'}
           </p>
+          {realCall && callState === 'connected' && (
+            <div className="mt-5 flex max-w-sm items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-left text-sm text-amber-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Si escuchas un buzón de voz, cuelga desde la extensión para evitar consumo
+                innecesario.
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -263,6 +273,7 @@ export function CallSimulatorModal({
                   orange: 'border-orange-500 bg-orange-50 text-orange-700',
                   rose: 'border-rose-500 bg-rose-50 text-rose-700',
                   amber: 'border-amber-500 bg-amber-50 text-amber-700',
+                  violet: 'border-violet-500 bg-violet-50 text-violet-700',
                 };
                 return (
                   <button
@@ -276,6 +287,7 @@ export function CallSimulatorModal({
                   >
                     {key === 'atendido' && <Phone className="h-4 w-4" />}
                     {key === 'no_contesto' && <PhoneOff className="h-4 w-4" />}
+                    {key === 'buzon_voz' && <Voicemail className="h-4 w-4" />}
                     {key === 'rechazado' && <X className="h-4 w-4" />}
                     {key === 'volver_a_llamar' && <CalendarClock className="h-4 w-4" />}
                     {cfg.label}

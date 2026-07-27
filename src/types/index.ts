@@ -10,7 +10,12 @@ export type LoanStatus =
   | 'rechazado'
   | 'finalizado';
 
-export type CallResult = 'atendido' | 'no_contesto' | 'rechazado' | 'volver_a_llamar';
+export type CallResult =
+  | 'atendido'
+  | 'no_contesto'
+  | 'buzon_voz'
+  | 'rechazado'
+  | 'volver_a_llamar';
 
 export type UserRole = 'admin' | 'operator';
 

@@ -81,6 +81,12 @@ export const CALL_RESULTS: Record<
     color: 'orange',
     icon: 'phone-off',
   },
+  buzon_voz: {
+    label: 'Buzón de voz',
+    nextStatus: 'no_contesto',
+    color: 'violet',
+    icon: 'voicemail',
+  },
   rechazado: {
     label: 'Rechazado',
     nextStatus: 'rechazado',
