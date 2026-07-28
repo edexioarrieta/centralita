@@ -192,7 +192,11 @@ export function LoanDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setCallModalOpen(true)}>
+            <Button
+              onClick={() => setCallModalOpen(true)}
+              disabled={!profile?.extension || !profile.active}
+              title={!profile?.extension ? 'El administrador debe asignarte una extensión PBX' : undefined}
+            >
               <Phone className="h-4 w-4" />
               Llamar
             </Button>
@@ -202,6 +206,13 @@ export function LoanDetailPage() {
             </Button>
           </div>
         </div>
+
+        {!profile?.extension && (
+          <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            No tienes una extensión PBX asignada. Un administrador debe configurarla antes
+            de realizar llamadas reales.
+          </div>
+        )}
 
         {showCountdown && (
           <div

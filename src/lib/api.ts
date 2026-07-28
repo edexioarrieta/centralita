@@ -1,6 +1,18 @@
 import { supabase } from '@/lib/supabase';
 import type { Call, CallInput, CallLog, Loan, LoanInput, UserProfile } from '@/types';
 
+export interface OperatorAdminInput {
+  action: 'invite' | 'update';
+  userId?: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  role: 'admin' | 'operator';
+  extension: string;
+  active?: boolean;
+  redirectTo?: string;
+}
+
 // ============================================================
 // Perfiles (users)
 // ============================================================
@@ -22,6 +34,22 @@ export async function fetchProfiles(): Promise<UserProfile[]> {
     .order('first_name', { ascending: true });
   if (error) throw error;
   return (data ?? []) as UserProfile[];
+}
+
+export async function manageOperator(input: OperatorAdminInput): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('operator-admin', {
+    body: input,
+  });
+  if (error) {
+    let message = error.message;
+    const response = (error as { context?: Response }).context;
+    if (response) {
+      const body = await response.clone().json().catch(() => null) as { error?: string } | null;
+      if (body?.error) message = body.error;
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(String(data.error));
 }
 
 export async function canRegisterFirstUser(): Promise<boolean> {

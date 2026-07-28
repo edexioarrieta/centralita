@@ -12,6 +12,7 @@ export interface Database {
           email: string;
           role: string;
           active: boolean;
+          extension: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -22,6 +23,7 @@ export interface Database {
           email: string;
           role?: string;
           active?: boolean;
+          extension?: string | null;
         };
         Update: Partial<Database['public']['Tables']['users']['Insert']>;
       };

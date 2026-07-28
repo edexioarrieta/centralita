@@ -16,6 +16,7 @@ export type CallState = 'idle' | 'dialing' | 'ringing' | 'connected' | 'ended';
 export interface MakeCallResult {
   callId: string;
   state: CallState;
+  extension?: string | null;
 }
 
 /**

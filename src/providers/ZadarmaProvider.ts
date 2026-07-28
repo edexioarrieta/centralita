@@ -56,11 +56,10 @@ export class ZadarmaProvider implements VoiceProvider {
   }
 
   async makeCall(loanId: string, phoneNumber: string): Promise<MakeCallResult> {
-    const extension = '100';
     const res = await fetch(`${this.baseUrl}/call`, {
       method: 'POST',
       headers: await this.authHeaders(),
-      body: JSON.stringify({ phone: phoneNumber, extension, loanId }),
+      body: JSON.stringify({ phone: phoneNumber, loanId }),
     });
     if (!res.ok) throw new Error(await this.extractError(res));
     const data = (await res.json()) as MakeCallResult;
@@ -71,7 +70,7 @@ export class ZadarmaProvider implements VoiceProvider {
       phoneNumber,
       state: data.state ?? 'dialing',
       providerStatus: 'initiated',
-      extension,
+      extension: data.extension ?? null,
       startedAt: new Date(),
       durationSeconds: 0,
     };

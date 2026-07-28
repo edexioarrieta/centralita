@@ -36,7 +36,6 @@ export function SignupPage() {
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            role: 'admin', // El primer operador es admin
           },
         },
       });

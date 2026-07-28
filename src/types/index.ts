@@ -54,6 +54,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   active: boolean;
+  extension: string | null;
   created_at: string;
   updated_at: string;
 }

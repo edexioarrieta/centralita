@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/format';
@@ -103,6 +104,11 @@ export function AppLayout() {
 }
 
 function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
+  const { profile } = useAuth();
+  const items = profile?.role === 'admin'
+    ? [...navItems, { to: '/admin/operators', label: 'Operadores', icon: Users }]
+    : navItems;
+
   return (
     <>
       <div className="flex h-16 items-center gap-2.5 border-b border-slate-200 px-5">
@@ -116,7 +122,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {navItems.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
